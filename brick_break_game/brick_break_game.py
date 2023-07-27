@@ -5,7 +5,7 @@ from collections import namedtuple
 import numpy as np
 
 pygame.init()
-font = pygame.font.Font('arial.ttf', 25)
+font = pygame.font.Font('snake_game/arial.ttf', 25)
 
 class Direction(Enum):
     RIGHT = 1
@@ -46,8 +46,17 @@ class Ball:
         potential_point.y > self.h or \
         potential_point.y < 0:
 
-            tol_x = min(self.w - self.position.x, self.position.x)
-            tol_y = min(self.h - self.position.y, self.position.y)
+            if np.cos(np.deg2rad(self.angle)) >= 0:
+
+                tol_x = self.w - self.position.x 
+            else:
+                tol_x = self.position.x
+            
+            if np.sin(np.deg2rad(360 - self.angle)) >= 0:
+
+                tol_y = self.h - self.position.y 
+            else:
+                tol_y = self.position.y
 
             try:
                 pct_bad_x = np.abs(tol_x / (np.cos(np.deg2rad(self.angle))*BLOCK_SIZE))
