@@ -30,7 +30,7 @@ class Ball:
         self.w = w
         self.h = h
         
-        self.angle = 300# random.randint(0, 359)
+        self.angle = random.randint(0, 359) + 0.01  # Added to avoid divide by zero errors later
         self.at_wall = False
 
     def move_ball(self):
@@ -41,31 +41,22 @@ class Ball:
         potential_point = Point(self.position.x + np.cos(np.deg2rad(self.angle))*BLOCK_SIZE, \
                                 self.position.y + np.sin(np.deg2rad(360 - self.angle))*BLOCK_SIZE)  # Flip because y axis is inverted
 
-        if potential_point.x > self.w or \
-        potential_point.x < 0 or \
-        potential_point.y > self.h or \
-        potential_point.y < 0:
+        if potential_point.x > self.w - BLOCK_SIZE or potential_point.x < 0 or \
+           potential_point.y > self.h - BLOCK_SIZE or potential_point.y < 0:
 
             if np.cos(np.deg2rad(self.angle)) >= 0:
-
-                tol_x = self.w - self.position.x 
+                tol_x = (self.w - BLOCK_SIZE) - self.position.x
             else:
                 tol_x = self.position.x
             
             if np.sin(np.deg2rad(360 - self.angle)) >= 0:
-
-                tol_y = self.h - self.position.y 
+                tol_y = (self.h - BLOCK_SIZE) - self.position.y 
             else:
                 tol_y = self.position.y
 
-            try:
-                pct_bad_x = np.abs(tol_x / (np.cos(np.deg2rad(self.angle))*BLOCK_SIZE))
-            except:
-                pct_bad_x = 1
-            try:
-                pct_bad_y = np.abs(tol_y / (np.sin(np.deg2rad(360 - self.angle))*BLOCK_SIZE))
-            except:
-                pct_bad_y = 1
+            pct_bad_x = np.abs(tol_x / (np.cos(np.deg2rad(self.angle))*BLOCK_SIZE))
+            pct_bad_y = np.abs(tol_y / (np.sin(np.deg2rad(360 - self.angle))*BLOCK_SIZE))
+
             req_shrinkage = min(pct_bad_x, pct_bad_y)
             self.at_wall = True
         else:
@@ -74,16 +65,16 @@ class Ball:
                                 self.position.y + np.sin(np.deg2rad(360 - self.angle))*BLOCK_SIZE*req_shrinkage)
 
     def _compute_angle(self) -> int:
-        if (int(self.position.x) == 0 or int(self.position.x) == self.w) and \
-            (int(self.position.y) == 0 or int(self.position.y) == self.h):
+        if (int(self.position.x) == 0 or int(self.position.x) == self.w - BLOCK_SIZE) and \
+            (int(self.position.y) == 0 or int(self.position.y) == self.h - BLOCK_SIZE):
             self.angle = (self.angle + 180) % 360
-        elif int(self.position.x) == 0 or int(self.position.x) == self.w:
+        elif int(self.position.x) == 0 or int(self.position.x) == self.w - BLOCK_SIZE:
             if self.angle >= 180:
                 self.angle += 2*(270 - self.angle)
             else:
                 self.angle += 2*(90 - self.angle)
 
-        elif int(self.position.y) == 0 or int(self.position.y) == self.h:
+        elif int(self.position.y) == 0 or int(self.position.y) == self.h - BLOCK_SIZE:
             if np.cos(np.deg2rad(self.angle)) <= 0:
                 self.angle += 2*(180 - self.angle)
             else:
