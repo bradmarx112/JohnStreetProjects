@@ -27,13 +27,18 @@ class Ball:
 
     def __init__(self, loc: Point, w, h):
         self.position = loc
-        self.w = w
-        self.h = h
+        self.init_pos = loc
+        self.w = w - BLOCK_SIZE
+        self.h = h - BLOCK_SIZE
         
-        self.angle = random.randint(0, 359) + 0.01  # Added to avoid divide by zero errors later
+        self.reset()
+
+    def reset(self) -> None:
+        self.position = self.init_pos
+        self.angle = random.randint(179, 359) + 0.01  # Added to avoid divide by zero errors later
         self.at_wall = False
 
-    def move_ball(self):
+    def move_ball(self) -> None:
         if self.at_wall:
             self._compute_angle()
             self.at_wall = False
@@ -41,16 +46,18 @@ class Ball:
         potential_point = Point(self.position.x + np.cos(np.deg2rad(self.angle))*BLOCK_SIZE, \
                                 self.position.y + np.sin(np.deg2rad(360 - self.angle))*BLOCK_SIZE)  # Flip because y axis is inverted
 
-        if potential_point.x > self.w - BLOCK_SIZE or potential_point.x < 0 or \
-           potential_point.y > self.h - BLOCK_SIZE or potential_point.y < 0:
+        if self.position.y > self.h:
+            self.reset()
+
+        if potential_point.x > self.w or potential_point.x < 0 or potential_point.y < 0:
 
             if np.cos(np.deg2rad(self.angle)) >= 0:
-                tol_x = (self.w - BLOCK_SIZE) - self.position.x
+                tol_x = self.w - self.position.x
             else:
                 tol_x = self.position.x
             
             if np.sin(np.deg2rad(360 - self.angle)) >= 0:
-                tol_y = (self.h - BLOCK_SIZE) - self.position.y 
+                tol_y = self.h - self.position.y 
             else:
                 tol_y = self.position.y
 
@@ -64,17 +71,17 @@ class Ball:
         self.position = Point(self.position.x + np.cos(np.deg2rad(self.angle))*BLOCK_SIZE*req_shrinkage, \
                                 self.position.y + np.sin(np.deg2rad(360 - self.angle))*BLOCK_SIZE*req_shrinkage)
 
-    def _compute_angle(self) -> int:
-        if (int(self.position.x) == 0 or int(self.position.x) == self.w - BLOCK_SIZE) and \
-            (int(self.position.y) == 0 or int(self.position.y) == self.h - BLOCK_SIZE):
+    def _compute_angle(self) -> None:
+        if (int(self.position.x) == 0 or int(self.position.x) == self.w) and \
+            (int(self.position.y) == 0 or int(self.position.y) == self.h):
             self.angle = (self.angle + 180) % 360
-        elif int(self.position.x) == 0 or int(self.position.x) == self.w - BLOCK_SIZE:
+        elif int(self.position.x) == 0 or int(self.position.x) == self.w:
             if self.angle >= 180:
                 self.angle += 2*(270 - self.angle)
             else:
                 self.angle += 2*(90 - self.angle)
 
-        elif int(self.position.y) == 0 or int(self.position.y) == self.h - BLOCK_SIZE:
+        elif int(self.position.y) == 0 or int(self.position.y) == self.h:
             if np.cos(np.deg2rad(self.angle)) <= 0:
                 self.angle += 2*(180 - self.angle)
             else:
@@ -83,9 +90,11 @@ class Ball:
 
 class BrickBreakGame:
 
-    def __init__(self, w=640, h=480, paddle_length=4):
+    def __init__(self, w=640, h=480, paddle_length=4, n_bricks=20, brick_depth_ratio=0.3):
         self.w = w
         self.h = h
+        self.n_bricks = n_bricks
+        self.brick_depth = int(self.h * brick_depth_ratio)
         # init display
         self.display = pygame.display.set_mode((self.w, self.h))
         pygame.display.set_caption('Brick Break')
@@ -99,6 +108,12 @@ class BrickBreakGame:
         start_pos = mid - (self.paddle_len // 2)
         for block_id in range(self.paddle_len):
                 self.paddle.append(Point(x=(start_pos + block_id)*BLOCK_SIZE, y=self.h-BLOCK_SIZE))
+        
+        brickset = set()
+        for brick_id in range(self.n_bricks):
+            brickset.add(Point(x=random.randint(0, (self.w-BLOCK_SIZE )//BLOCK_SIZE )*BLOCK_SIZE,
+                               y=random.randint(0, (self.brick_depth)//BLOCK_SIZE )*BLOCK_SIZE))
+        self.bricks = list(brickset)
         self.paddle_dir = Direction.RIGHT
         self.ball = Ball(Point(self.w/2, self.h/2), self.w, self.h)
 
@@ -136,11 +151,15 @@ class BrickBreakGame:
 
     def _update_ui(self):
         self.display.fill(BLACK)
-        
+
         for pt in self.paddle:
             # print(pt)
             pygame.draw.rect(self.display, BLUE1, pygame.Rect(pt.x, pt.y, BLOCK_SIZE, BLOCK_SIZE))
             pygame.draw.rect(self.display, BLUE2, pygame.Rect(pt.x+4, pt.y+4, 12, 12))
+
+        for bricks in self.bricks:
+            # print(pt)
+            pygame.draw.rect(self.display, RED, pygame.Rect(bricks.x, bricks.y, BLOCK_SIZE, BLOCK_SIZE))
             
         pygame.draw.rect(self.display, RED, pygame.Rect(self.ball.position.x, self.ball.position.y, BLOCK_SIZE, BLOCK_SIZE))
         
