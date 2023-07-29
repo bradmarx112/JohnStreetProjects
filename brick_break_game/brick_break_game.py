@@ -16,72 +16,42 @@ Point = namedtuple('Point', 'x, y')
 # rgb colors
 WHITE = (255, 255, 255)
 RED = (200,0,0)
+GREEN = (0,200,0)
 BLUE1 = (0, 0, 255)
 BLUE2 = (0, 100, 255)
 BLACK = (0,0,0)
 
 BLOCK_SIZE = 20
-SPEED = 30
+SPEED = 50
 
 class Ball:
 
     def __init__(self, loc: Point, w, h):
         self.position = loc
         self.init_pos = loc
-        self.w = w - BLOCK_SIZE
-        self.h = h - BLOCK_SIZE
+        self.w = w
+        self.h = h
         
-        self.reset()
-
-    def reset(self) -> None:
-        self.position = self.init_pos
-        self.angle = random.randint(179, 359) + 0.01  # Added to avoid divide by zero errors later
+        self.angle = random.randint(0, 359) + 0.01  # Added to avoid divide by zero errors later
         self.at_wall = False
 
-    def move_ball(self) -> None:
-        if self.at_wall:
-            self._compute_angle()
-            self.at_wall = False
-
-        potential_point = Point(self.position.x + np.cos(np.deg2rad(self.angle))*BLOCK_SIZE, \
-                                self.position.y + np.sin(np.deg2rad(360 - self.angle))*BLOCK_SIZE)  # Flip because y axis is inverted
-
-        if self.position.y > self.h:
-            self.reset()
-
-        if potential_point.x > self.w or potential_point.x < 0 or potential_point.y < 0:
-
-            if np.cos(np.deg2rad(self.angle)) >= 0:
-                tol_x = self.w - self.position.x
-            else:
-                tol_x = self.position.x
-            
-            if np.sin(np.deg2rad(360 - self.angle)) >= 0:
-                tol_y = self.h - self.position.y 
-            else:
-                tol_y = self.position.y
-
-            pct_bad_x = np.abs(tol_x / (np.cos(np.deg2rad(self.angle))*BLOCK_SIZE))
-            pct_bad_y = np.abs(tol_y / (np.sin(np.deg2rad(360 - self.angle))*BLOCK_SIZE))
-
-            req_shrinkage = min(pct_bad_x, pct_bad_y)
-            self.at_wall = True
+    def update_angle(self, blocker: Point = None) -> None:
+        if not blocker:
+            strtx, strty = 0, 0
+            endx, endy = self.w, self.h
         else:
-            req_shrinkage = 1
-        self.position = Point(self.position.x + np.cos(np.deg2rad(self.angle))*BLOCK_SIZE*req_shrinkage, \
-                                self.position.y + np.sin(np.deg2rad(360 - self.angle))*BLOCK_SIZE*req_shrinkage)
-
-    def _compute_angle(self) -> None:
-        if (int(self.position.x) == 0 or int(self.position.x) == self.w) and \
-            (int(self.position.y) == 0 or int(self.position.y) == self.h):
+            strtx, strty = blocker.x, blocker.y
+            endx, endy = blocker.x + BLOCK_SIZE, blocker.y + BLOCK_SIZE
+        if (int(self.position.x) == strtx or int(self.position.x) == endx) and \
+            (int(self.position.y) == strty or int(self.position.y) == endy):
             self.angle = (self.angle + 180) % 360
-        elif int(self.position.x) == 0 or int(self.position.x) == self.w:
+        elif int(self.position.x) == strtx or int(self.position.x) == endx:
             if self.angle >= 180:
                 self.angle += 2*(270 - self.angle)
             else:
                 self.angle += 2*(90 - self.angle)
 
-        elif int(self.position.y) == 0 or int(self.position.y) == self.h:
+        elif int(self.position.y) == strty or int(self.position.y) == endy:
             if np.cos(np.deg2rad(self.angle)) <= 0:
                 self.angle += 2*(180 - self.angle)
             else:
@@ -91,8 +61,8 @@ class Ball:
 class BrickBreakGame:
 
     def __init__(self, w=640, h=480, paddle_length=4, n_bricks=20, brick_depth_ratio=0.3):
-        self.w = w
-        self.h = h
+        self.w = w - BLOCK_SIZE
+        self.h = h - BLOCK_SIZE
         self.n_bricks = n_bricks
         self.brick_depth = int(self.h * brick_depth_ratio)
         # init display
@@ -107,13 +77,14 @@ class BrickBreakGame:
         mid = (self.w / BLOCK_SIZE) // 2
         start_pos = mid - (self.paddle_len // 2)
         for block_id in range(self.paddle_len):
-                self.paddle.append(Point(x=(start_pos + block_id)*BLOCK_SIZE, y=self.h-BLOCK_SIZE))
+                self.paddle.append(Point(x=(start_pos + block_id)*BLOCK_SIZE, y=self.h - BLOCK_SIZE))
         
         brickset = set()
         for brick_id in range(self.n_bricks):
-            brickset.add(Point(x=random.randint(0, (self.w-BLOCK_SIZE )//BLOCK_SIZE )*BLOCK_SIZE,
+            brickset.add(Point(x=random.randint(0, (self.w)//BLOCK_SIZE )*BLOCK_SIZE,
                                y=random.randint(0, (self.brick_depth)//BLOCK_SIZE )*BLOCK_SIZE))
         self.bricks = list(brickset)
+        self.blocker = None
         self.paddle_dir = Direction.RIGHT
         self.ball = Ball(Point(self.w/2, self.h/2), self.w, self.h)
 
@@ -129,25 +100,152 @@ class BrickBreakGame:
         return self.paddle
 
     def _move(self):
+        self._move_paddle()
+        
+        self._move_ball()
+
+    def _move_paddle(self) -> None:
         if self.paddle_dir == Direction.RIGHT:
-            if self.paddle[-1].x > self.w - BLOCK_SIZE*2:
-                self.paddle.insert(0, Point(x=self.paddle[0].x - BLOCK_SIZE, y=self.h-BLOCK_SIZE))
+            if self.paddle[-1].x > self.w - BLOCK_SIZE:
+                self.paddle.insert(0, Point(x=self.paddle[0].x - BLOCK_SIZE, y=self.h - BLOCK_SIZE))
                 self.paddle.pop()
                 self.paddle_dir = Direction.LEFT
             else:
-                self.paddle.append(Point(x=self.paddle[-1].x + BLOCK_SIZE, y=self.h-BLOCK_SIZE))
+                self.paddle.append(Point(x=self.paddle[-1].x + BLOCK_SIZE, y=self.h - BLOCK_SIZE))
                 self.paddle.pop(0)
 
         elif self.paddle_dir == Direction.LEFT:
             if self.paddle[0].x <= 0:
-                self.paddle.append(Point(x=self.paddle[-1].x + BLOCK_SIZE, y=self.h-BLOCK_SIZE))
+                self.paddle.append(Point(x=self.paddle[-1].x + BLOCK_SIZE, y=self.h - BLOCK_SIZE))
                 self.paddle.pop(0)
                 self.paddle_dir = Direction.RIGHT
             else:
-                self.paddle.insert(0, Point(x=self.paddle[0].x - BLOCK_SIZE, y=self.h-BLOCK_SIZE))
+                self.paddle.insert(0, Point(x=self.paddle[0].x - BLOCK_SIZE, y=self.h - BLOCK_SIZE))
                 self.paddle.pop()
+
+    def _move_ball(self) -> None:
         
-        self.ball.move_ball()
+        if self.ball.at_wall:
+            self.ball.update_angle(self.blocker)
+            self.ball.at_wall = False
+
+        potential_point = Point(self.ball.position.x + np.cos(np.deg2rad(self.ball.angle))*BLOCK_SIZE, \
+                                self.ball.position.y + np.sin(np.deg2rad(360 - self.ball.angle))*BLOCK_SIZE)  # Flip because y axis is inverted
+
+        if self.ball.position.y > self.h:
+            self.reset()
+        else:
+            blocker_shrinkage, self.blocker = self.get_blocker_shrinkage()
+
+            if potential_point.x > self.w or potential_point.x < 0 or potential_point.y < 0 or blocker_shrinkage != 1.0:
+
+                if np.cos(np.deg2rad(self.ball.angle)) >= 0:
+                    tol_x = self.w - self.ball.position.x
+                else:
+                    tol_x = self.ball.position.x
+                
+                if np.sin(np.deg2rad(360 - self.ball.angle)) >= 0:
+                    tol_y = self.h - self.ball.position.y 
+                else:
+                    tol_y = self.ball.position.y
+
+                pct_bad_x = np.abs(tol_x / (np.cos(np.deg2rad(self.ball.angle))*BLOCK_SIZE))
+                pct_bad_y = np.abs(tol_y / (np.sin(np.deg2rad(360 - self.ball.angle))*BLOCK_SIZE))
+
+                req_shrinkage = min(pct_bad_x, pct_bad_y, blocker_shrinkage)
+                self.ball.at_wall = True
+            else:
+                req_shrinkage = 1.0
+            self.ball.position = Point(self.ball.position.x + np.cos(np.deg2rad(self.ball.angle))*BLOCK_SIZE*req_shrinkage, \
+                                    self.ball.position.y + np.sin(np.deg2rad(360 - self.ball.angle))*BLOCK_SIZE*req_shrinkage)
+
+    def get_blocker_shrinkage(self) -> float:
+
+        relevant_shrinkages = [1.0]
+        closest_block = None
+
+        for block in self.paddle + self.bricks:
+            if block == self.blocker:
+                continue
+
+            dx = block.x - self.ball.position.x
+            dy = block.y - self.ball.position.y
+
+            if 0 <= dx <= BLOCK_SIZE and 0 <= dy <= BLOCK_SIZE:
+                # Ball is close to the block along its trajectory
+                shrinkage = 1.0
+
+                if np.cos(np.deg2rad(self.ball.angle)) < 0:
+                    # Approaching from the right
+                    dist_to_right_edge = block.x + BLOCK_SIZE - self.ball.position.x
+                    if dist_to_right_edge < BLOCK_SIZE:
+                        shrinkage = min(shrinkage, dist_to_right_edge / (np.cos(np.deg2rad(self.ball.angle)) * BLOCK_SIZE))
+                else:
+                    # Approaching from the left
+                    dist_to_left_edge = self.ball.position.x - block.x
+                    if dist_to_left_edge < BLOCK_SIZE:
+                        shrinkage = min(shrinkage, dist_to_left_edge / (np.cos(np.deg2rad(self.ball.angle)) * BLOCK_SIZE))
+
+                if np.sin(np.deg2rad(360 - self.ball.angle)) > 0:
+                    # Approaching from the top
+                    dist_to_bottom_edge = self.ball.position.y - block.y + BLOCK_SIZE
+                    if dist_to_bottom_edge < BLOCK_SIZE:
+                        shrinkage = min(shrinkage, dist_to_bottom_edge / (np.sin(np.deg2rad(360 - self.ball.angle)) * BLOCK_SIZE))
+                else:
+                    # Approaching from the bottom
+                    dist_to_top_edge = block.y - self.ball.position.y
+                    if dist_to_top_edge < BLOCK_SIZE:
+                        shrinkage = min(shrinkage, dist_to_top_edge / (np.sin(np.deg2rad(360 - self.ball.angle)) * BLOCK_SIZE))
+
+                if shrinkage < min(relevant_shrinkages):
+                    closest_block = block
+                    relevant_shrinkages.append(shrinkage)
+
+        return min(relevant_shrinkages), closest_block
+
+        # relevant_shrinkages = [1.0]
+        # closest_block = None
+        # for block in self.paddle + self.bricks:
+        #     if block == self.blocker:
+        #         continue
+        #     if np.cos(np.deg2rad(self.ball.angle)) >= 0:
+        #         x_tol_frm_origin = block.x - self.ball.position.x
+        #     else:
+        #         x_tol_frm_origin = self.ball.position.x - (block.x + BLOCK_SIZE)
+
+        #     if x_tol_frm_origin < 0:
+        #         x_tol_frm_origin += BLOCK_SIZE
+            
+        #     if abs(x_tol_frm_origin) > BLOCK_SIZE or x_tol_frm_origin < 0:
+        #         continue
+            
+        #     if np.sin(np.deg2rad(360 - self.ball.angle)) >= 0:
+        #         y_tol_frm_origin = self.ball.position.y - (block.y + BLOCK_SIZE)
+        #     else:
+        #         y_tol_frm_origin = block.y - self.ball.position.y
+
+        #     if y_tol_frm_origin < 0:
+        #         y_tol_frm_origin += BLOCK_SIZE
+
+        #     if abs(y_tol_frm_origin) > BLOCK_SIZE or y_tol_frm_origin < 0:
+        #         continue
+
+        #     pct_bad_x = np.abs(x_tol_frm_origin / (np.cos(np.deg2rad(self.ball.angle))*BLOCK_SIZE))
+        #     pct_bad_y = np.abs(y_tol_frm_origin / (np.sin(np.deg2rad(360 - self.ball.angle))*BLOCK_SIZE))
+        #     feasible_shrinkages = [1.0]
+        #     if block.x < self.ball.position.x + np.cos(np.deg2rad(self.ball.angle))*BLOCK_SIZE*pct_bad_y < block.x + BLOCK_SIZE:
+        #         feasible_shrinkages.append(pct_bad_y)
+        #     if block.y < self.ball.position.y + np.sin(np.deg2rad(360 - self.ball.angle))*BLOCK_SIZE*pct_bad_x < block.y + BLOCK_SIZE:
+        #         feasible_shrinkages.append(pct_bad_x)
+        #     # else:
+        #     shrinkage = min(feasible_shrinkages)
+        #         # or \
+        #         # block.y <= self.ball.position.y + np.sin(np.deg2rad(360 - self.ball.angle))*BLOCK_SIZE*pct_bad_x <= block.y + BLOCK_SIZE:
+        #     if shrinkage < min(relevant_shrinkages):
+        #         closest_block = block
+        #         relevant_shrinkages.append(shrinkage)
+
+        # return min(relevant_shrinkages), closest_block
 
     def _update_ui(self):
         self.display.fill(BLACK)
@@ -161,7 +259,7 @@ class BrickBreakGame:
             # print(pt)
             pygame.draw.rect(self.display, RED, pygame.Rect(bricks.x, bricks.y, BLOCK_SIZE, BLOCK_SIZE))
             
-        pygame.draw.rect(self.display, RED, pygame.Rect(self.ball.position.x, self.ball.position.y, BLOCK_SIZE, BLOCK_SIZE))
+        pygame.draw.rect(self.display, GREEN, pygame.Rect(self.ball.position.x, self.ball.position.y, BLOCK_SIZE, BLOCK_SIZE))
         
         text = font.render("Score:" + "Test", True, WHITE)
         self.display.blit(text, [0, 0])
