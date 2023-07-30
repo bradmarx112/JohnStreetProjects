@@ -22,7 +22,7 @@ BLUE2 = (0, 100, 255)
 BLACK = (0,0,0)
 
 BLOCK_SIZE = 20
-SPEED = 20
+SPEED = 50
 
 class Ball:
 
@@ -95,7 +95,7 @@ class BrickBreakGame:
                 quit()
         
         self._move()
-        self.bricks = [brick for brick in self.bricks if brick != self.blocker]
+        # self.bricks = [brick for brick in self.bricks if brick != self.blocker]
         self._update_ui()
         self.clock.tick(SPEED)
         return self.paddle
