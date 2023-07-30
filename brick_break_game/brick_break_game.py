@@ -22,7 +22,7 @@ BLUE2 = (0, 100, 255)
 BLACK = (0,0,0)
 
 BLOCK_SIZE = 20
-SPEED = 50
+SPEED = 20
 
 class Ball:
 
@@ -95,6 +95,7 @@ class BrickBreakGame:
                 quit()
         
         self._move()
+        self.bricks = [brick for brick in self.bricks if brick != self.blocker]
         self._update_ui()
         self.clock.tick(SPEED)
         return self.paddle
@@ -191,14 +192,14 @@ class BrickBreakGame:
             pct_bad_x = np.abs(x_tol_frm_origin / (np.cos(np.deg2rad(self.ball.angle))*BLOCK_SIZE))
             pct_bad_y = np.abs(y_tol_frm_origin / (np.sin(np.deg2rad(360 - self.ball.angle))*BLOCK_SIZE))
             feasible_shrinkages = [1.0]
+
             if block.x < self.ball.position.x + np.cos(np.deg2rad(self.ball.angle))*BLOCK_SIZE*pct_bad_y < block.x + BLOCK_SIZE:
                 feasible_shrinkages.append(pct_bad_y)
             if block.y < self.ball.position.y + np.sin(np.deg2rad(360 - self.ball.angle))*BLOCK_SIZE*pct_bad_x < block.y + BLOCK_SIZE:
                 feasible_shrinkages.append(pct_bad_x)
-            # else:
+
             shrinkage = min(feasible_shrinkages)
-                # or \
-                # block.y <= self.ball.position.y + np.sin(np.deg2rad(360 - self.ball.angle))*BLOCK_SIZE*pct_bad_x <= block.y + BLOCK_SIZE:
+
             if shrinkage < min(relevant_shrinkages):
                 closest_block = block
                 relevant_shrinkages.append(shrinkage)
