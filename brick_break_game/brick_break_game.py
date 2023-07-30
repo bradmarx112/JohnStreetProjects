@@ -145,7 +145,7 @@ class BrickBreakGame:
                 else:
                     tol_x = self.ball.position.x
                 
-                if np.sin(np.deg2rad(360 - self.ball.angle)) >= 0:
+                if np.sin(np.deg2rad(360 - self.ball.angle)) < 0:
                     tol_y = self.h - self.ball.position.y 
                 else:
                     tol_y = self.ball.position.y
