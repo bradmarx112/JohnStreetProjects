@@ -203,13 +203,12 @@ class BrickBreakGame:
             if (block.x < self.ball.position.x + np.cos(np.deg2rad(self.ball.angle))*BLOCK_SIZE*pct_bad_y < block.x + BLOCK_SIZE) or \
                 block.x < (self.ball.position.x + self.ball.ball_dim) + np.cos(np.deg2rad(self.ball.angle))*BLOCK_SIZE*pct_bad_y < block.x + BLOCK_SIZE:
                 feasible_shrinkages.append(pct_bad_y)
+                
             if (block.y < self.ball.position.y + np.sin(np.deg2rad(360 - self.ball.angle))*BLOCK_SIZE*pct_bad_x < block.y + BLOCK_SIZE) or \
                 block.y < (self.ball.position.y + self.ball.ball_dim) + np.sin(np.deg2rad(360 - self.ball.angle))*BLOCK_SIZE*pct_bad_x < block.y + BLOCK_SIZE:
                 feasible_shrinkages.append(pct_bad_x)
-            # else:
+
             shrinkage = min(feasible_shrinkages)
-                # or \
-                # block.y <= self.ball.position.y + np.sin(np.deg2rad(360 - self.ball.angle))*BLOCK_SIZE*pct_bad_x <= block.y + BLOCK_SIZE:
             if shrinkage < min(relevant_shrinkages):
                 closest_block = block
                 relevant_shrinkages.append(shrinkage)
