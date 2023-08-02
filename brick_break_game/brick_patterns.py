@@ -5,14 +5,14 @@ def spiral(w, h) -> list:
     vert_blocks = h // BLOCK_SIZE
     
     x = w - (BLOCK_SIZE*2)
-    y = h - BLOCK_SIZE
-    path_pts = [Point(x, y)]
-    y_mv = vert_blocks - 2
+    y = h# - BLOCK_SIZE
+    path_pts = []#[Point(x, y)]
+    y_mv = vert_blocks - 1
     x_mv = hor_blocks - 3
     finished = False
     dir_idx = -1
     while not finished:
-        if x_mv <= 1:
+        if y_mv < 1 or x_mv == -1:
             finished = True
         else:
             for y_pos in range(y_mv):
@@ -20,7 +20,7 @@ def spiral(w, h) -> list:
                 path_pts.append(Point(x=x, y=y))
             y_mv -= 2
         
-        if x_mv <= 1:
+        if x_mv < 1 or y_mv == -1:
             finished = True
         else:
             for x_pos in range(x_mv):
