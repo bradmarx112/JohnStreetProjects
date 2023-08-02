@@ -73,7 +73,7 @@ class BrickBreakGame:
         self.paddle_len = paddle_length
         self.reset()
 
-    def reset(self):
+    def reset(self) -> None:
         self.paddle = []
         mid = (self.w / BLOCK_SIZE) // 2
         start_pos = mid - (self.paddle_len // 2)
@@ -90,13 +90,13 @@ class BrickBreakGame:
         self.paddle_dir = Direction.RIGHT
         self.ball = Ball(Point(self.w/2, self.h/2), self.w, self.h)
 
-    def play_step(self):
+    def play_step(self, action: list = None) -> None:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 quit()
         
-        self._move()
+        self._move(action=action)
         if self.blocker in self.bricks:
             self.score += 1
         self.bricks = [brick for brick in self.bricks if brick != self.blocker]
@@ -104,12 +104,36 @@ class BrickBreakGame:
         self._update_ui()
         self.clock.tick(SPEED)
 
-    def _move(self):
-        self._move_paddle()
+    def _move(self, action: list = None):
+        self._move_paddle(action=action)
         
         self._move_ball()
 
-    def _move_paddle(self) -> None:
+    def _move_paddle(self, action: list = None) -> None:
+        '''
+        Moves paddle one space based on parameters in 'action' list. 
+        [1, 0, 0] means move left, [0, 0, 1] means move right, [0, 1, 0] means do not move
+        '''
+        if not action:
+            self._auto_move()
+        else:
+            # Check if moving left
+            if np.array_equal(action, [1, 0, 0]):
+                # Only move if not touching left side of screen
+                if self.paddle[0].x >= BLOCK_SIZE:
+                    self.paddle.insert(0, Point(x=self.paddle[0].x - BLOCK_SIZE, y=self.h - BLOCK_SIZE))
+                    self.paddle.pop()
+            
+            # Check if moving right
+            elif np.array_equal(action, [0, 0, 1]):
+                # Only move if not touching right side of screen
+                if self.paddle[-1].x + BLOCK_SIZE > self.w:
+                    self.paddle.append(Point(x=self.paddle[-1].x + BLOCK_SIZE, y=self.h - BLOCK_SIZE))
+                    self.paddle.pop(0)
+            
+            # If action is [0, 1, 0] then do nothing (stay in same place)
+
+    def _auto_move(self) -> None:
         if self.paddle_dir == Direction.RIGHT:
             if self.paddle[-1].x > self.w - BLOCK_SIZE:
                 self.paddle.insert(0, Point(x=self.paddle[0].x - BLOCK_SIZE, y=self.h - BLOCK_SIZE))
@@ -140,7 +164,7 @@ class BrickBreakGame:
         if self.ball.position.y + self.ball.ball_dim > self.h:
             self.reset()
         else:
-            blocker_shrinkage, self.blocker = self.get_blocker_shrinkage()
+            blocker_shrinkage, self.blocker = self._get_blocker_shrinkage()
 
             if potential_point.x + self.ball.ball_dim > self.w or potential_point.x < 0 or potential_point.y < 0 or blocker_shrinkage != 1.0:
 
@@ -164,7 +188,7 @@ class BrickBreakGame:
             self.ball.position = Point(self.ball.position.x + np.cos(np.deg2rad(self.ball.angle))*BLOCK_SIZE*req_shrinkage, \
                                     self.ball.position.y + np.sin(np.deg2rad(360 - self.ball.angle))*BLOCK_SIZE*req_shrinkage)
 
-    def get_blocker_shrinkage(self) -> float:
+    def _get_blocker_shrinkage(self) -> float:
 
         relevant_shrinkages = [1.0]
         closest_block = None
@@ -215,7 +239,7 @@ class BrickBreakGame:
 
         return min(relevant_shrinkages), closest_block
 
-    def _update_ui(self):
+    def _update_ui(self) -> None:
         self.display.fill(BLACK)
 
         for pt in self.paddle:
@@ -229,7 +253,7 @@ class BrickBreakGame:
             
         pygame.draw.rect(self.display, GREEN, pygame.Rect(self.ball.position.x, self.ball.position.y, self.ball.ball_dim, self.ball.ball_dim))
         
-        text = font.render("Score:" + str(self.score), True, WHITE)
+        text = font.render(f"Score: {str(self.score)}", True, WHITE)
         self.display.blit(text, [0, 0])
         pygame.display.flip()
 
