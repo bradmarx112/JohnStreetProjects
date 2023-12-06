@@ -5,7 +5,7 @@ CREATE TABLE "race" (
 "Name" text,
 "Class" text,
 "Date" text,
-"Track_ID" text,
+"Track_ID" int,
 PRIMARY KEY ("Race_ID"),
 FOREIGN KEY ("Track_ID") REFERENCES "track"("Track_ID")
 );
